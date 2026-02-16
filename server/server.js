@@ -1,8 +1,47 @@
 require("dotenv").config();
 
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const { Ollama } = require("ollama");
+
+// --- Config ---
 const ACCESS_TOKEN = process.env.STRAVA_ACCESS_TOKEN;
 const BASE_URL = "https://www.strava.com/api/v3";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
+const DB_NAME = process.env.DB_NAME || "strava_analytics";
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
+const PORT = process.env.PORT || 8080;
 
+// --- Express setup ---
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// --- MongoDB connection ---
+mongoose
+  .connect(`${MONGODB_URI}/${DB_NAME}`)
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+// --- Mongoose schema & model ---
+const insightSchema = new mongoose.Schema(
+  {
+    query: String,
+    analysis: String,
+    toolsUsed: [String],
+    stravaData: mongoose.Schema.Types.Mixed,
+  },
+  { timestamps: true },
+);
+
+const Insight = mongoose.model("Insight", insightSchema);
+
+// --- Ollama client ---
+const ollama = new Ollama({ host: OLLAMA_HOST });
+
+// --- Strava helper functions ---
 async function getAllActivities() {
   const activities = [];
   let page = 1;
@@ -58,26 +97,252 @@ function formatRide(ride) {
   };
 }
 
-async function main() {
-  console.log("Fetching all activities from Strava...");
-  const activities = await getAllActivities();
-  console.log(`Total activities: ${activities.length}`);
-
-  const rides = getRides(activities);
-  console.log(`Total bike rides: ${rides.length}`);
-
-  if (rides.length === 0) {
-    console.log("No bike rides found.");
-    return;
-  }
-
-  const longest = getLongestRide(rides);
-  console.log("\nLongest Ride:");
-  console.log(formatRide(longest));
-
-  const fastest = getFastestRide(rides);
-  console.log("\nFastest Ride (by avg speed):");
-  console.log(formatRide(fastest));
+function formatActivity(activity) {
+  return {
+    name: activity.name,
+    type: activity.type,
+    date: activity.start_date_local,
+    distance_km: (activity.distance / 1000).toFixed(2),
+    moving_time_min: (activity.moving_time / 60).toFixed(1),
+    elevation_gain_m: activity.total_elevation_gain,
+  };
 }
 
-main().catch(console.error);
+// --- Activity cache (5-min TTL) ---
+let activityCache = { data: null, timestamp: 0 };
+const CACHE_TTL = 5 * 60 * 1000;
+
+async function getCachedActivities() {
+  const now = Date.now();
+  if (activityCache.data && now - activityCache.timestamp < CACHE_TTL) {
+    return activityCache.data;
+  }
+  const activities = await getAllActivities();
+  activityCache = { data: activities, timestamp: now };
+  return activities;
+}
+
+// --- Tool schemas for Ollama ---
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "get_longest_ride",
+      description:
+        "Find the longest bike ride by distance. Returns the ride with the greatest distance.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_fastest_ride",
+      description:
+        "Find the fastest bike ride by average speed. Returns the ride with the highest average speed.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_activity_summary",
+      description:
+        "Get an aggregate summary of all activities including total count, breakdown by type, total distance, total time, and date range.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_recent_activities",
+      description: "Get the N most recent activities.",
+      parameters: {
+        type: "object",
+        properties: {
+          count: {
+            type: "number",
+            description: "Number of recent activities to return (default 5)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_rides",
+      description: "Get all bike rides with formatted details.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_all_activities",
+      description: "Get all activities with formatted details.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+];
+
+// --- Tool handlers ---
+const toolHandlers = {
+  async get_longest_ride() {
+    const activities = await getCachedActivities();
+    const rides = getRides(activities);
+    const longest = getLongestRide(rides);
+    return longest ? formatRide(longest) : { message: "No rides found" };
+  },
+
+  async get_fastest_ride() {
+    const activities = await getCachedActivities();
+    const rides = getRides(activities);
+    const fastest = getFastestRide(rides);
+    return fastest ? formatRide(fastest) : { message: "No rides found" };
+  },
+
+  async get_activity_summary() {
+    const activities = await getCachedActivities();
+    const typeBreakdown = {};
+    let totalDistance = 0;
+    let totalTime = 0;
+
+    for (const a of activities) {
+      typeBreakdown[a.type] = (typeBreakdown[a.type] || 0) + 1;
+      totalDistance += a.distance;
+      totalTime += a.moving_time;
+    }
+
+    const dates = activities.map((a) => new Date(a.start_date_local));
+    return {
+      total_activities: activities.length,
+      type_breakdown: typeBreakdown,
+      total_distance_km: (totalDistance / 1000).toFixed(2),
+      total_moving_time_hours: (totalTime / 3600).toFixed(2),
+      earliest_activity: dates.length
+        ? new Date(Math.min(...dates)).toISOString()
+        : null,
+      latest_activity: dates.length
+        ? new Date(Math.max(...dates)).toISOString()
+        : null,
+    };
+  },
+
+  async get_recent_activities(args) {
+    const count = args?.count || 5;
+    const activities = await getCachedActivities();
+    const sorted = [...activities].sort(
+      (a, b) => new Date(b.start_date_local) - new Date(a.start_date_local),
+    );
+    return sorted.slice(0, count).map(formatActivity);
+  },
+
+  async get_rides() {
+    const activities = await getCachedActivities();
+    const rides = getRides(activities);
+    return rides.map(formatRide);
+  },
+
+  async get_all_activities() {
+    const activities = await getCachedActivities();
+    return activities.map(formatActivity);
+  },
+};
+
+// --- Tool-calling loop ---
+async function runAnalysis(query) {
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are a sports analytics assistant. Use the available tools to fetch real Strava activity data, then provide a helpful analysis based on the results. Be specific and reference actual numbers from the data.",
+    },
+    { role: "user", content: query },
+  ];
+
+  const toolsUsed = [];
+  const stravaData = {};
+
+  while (true) {
+    const response = await ollama.chat({
+      model: OLLAMA_MODEL,
+      messages,
+      tools,
+    });
+
+    const msg = response.message;
+    messages.push(msg);
+
+    if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      return { analysis: msg.content, toolsUsed, stravaData };
+    }
+
+    for (const toolCall of msg.tool_calls) {
+      const name = toolCall.function.name;
+      const args = toolCall.function.arguments;
+
+      console.log(`Tool called: ${name}`);
+      toolsUsed.push(name);
+
+      const handler = toolHandlers[name];
+      if (!handler) {
+        const errResult = { error: `Unknown tool: ${name}` };
+        messages.push({ role: "tool", content: JSON.stringify(errResult) });
+        continue;
+      }
+
+      const result = await handler(args);
+      stravaData[name] = result;
+      messages.push({ role: "tool", content: JSON.stringify(result) });
+    }
+  }
+}
+
+// --- Routes ---
+app.post("/analyze", async (req, res) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: "query is required" });
+  }
+
+  try {
+    const { analysis, toolsUsed, stravaData } = await runAnalysis(query);
+    const insight = await Insight.create({
+      query,
+      analysis,
+      toolsUsed,
+      stravaData,
+    });
+    res.json(insight);
+  } catch (err) {
+    console.error("Analysis error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/insights", async (_req, res) => {
+  try {
+    const insights = await Insight.find().sort({ createdAt: -1 });
+    res.json(insights);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/insights/:id", async (req, res) => {
+  try {
+    const insight = await Insight.findById(req.params.id);
+    if (!insight) {
+      return res.status(404).json({ error: "Insight not found" });
+    }
+    res.json(insight);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Start server ---
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
