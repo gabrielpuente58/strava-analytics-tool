@@ -1,12 +1,161 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Strava Analytics</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <div id="app">
+      <header>
+        <h1>
+          <span class="material-symbols-outlined">directions_bike</span>
+          Strava Analytics
+        </h1>
+      </header>
+
+      <main>
+        <!-- Query Form -->
+        <section class="form-section">
+          <h2>
+            <span class="material-symbols-outlined">search</span>
+            Ask a Question
+          </h2>
+          <form @submit.prevent="analyze">
+            <div class="form-group">
+              <label for="query">What do you want to know about your activities?</label>
+              <textarea
+                id="query"
+                v-model="query"
+                required
+                placeholder="e.g. What was my longest ride? Give me a summary of all my activities..."
+                rows="3"
+                :disabled="loading"
+              ></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" :disabled="loading || !query.trim()">
+              <span class="material-symbols-outlined">analytics</span>
+              {{ loading ? 'Analyzing...' : 'Analyze' }}
+            </button>
+          </form>
+
+          <div v-if="message" :class="['message', messageType]">
+            {{ message }}
+          </div>
+
+          <!-- Current Analysis Result -->
+          <div v-if="currentResult" class="result-card">
+            <h3>Analysis</h3>
+            <div class="analysis-content">
+              <p>{{ currentResult.analysis }}</p>
+            </div>
+            <div v-if="currentResult.toolsUsed.length" class="tools-used">
+              <h4>Tools Used</h4>
+              <div class="tools-list">
+                <span
+                  v-for="tool in currentResult.toolsUsed"
+                  :key="tool"
+                  class="tool-tag"
+                >
+                  {{ tool }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Past Insights -->
+        <section class="insights-section">
+          <h2>
+            <span class="material-symbols-outlined">history</span>
+            Past Insights
+          </h2>
+
+          <div v-if="insightsLoading" class="loading">Loading insights...</div>
+
+          <div v-else-if="error" class="error">{{ error }}</div>
+
+          <div v-else-if="insights.length === 0" class="empty-state">
+            No insights yet. Ask a question to get started!
+          </div>
+
+          <div v-else class="insights-list">
+            <div
+              v-for="insight in insights"
+              :key="insight._id"
+              class="insight-card"
+              @click="viewInsight(insight._id)"
+            >
+              <div class="insight-header">
+                <div class="insight-query-preview">{{ insight.query }}</div>
+                <div class="insight-date">{{ formatDate(insight.createdAt) }}</div>
+              </div>
+              <div class="insight-preview">
+                <p>{{ truncate(insight.analysis, 120) }}</p>
+                <div v-if="insight.toolsUsed.length" class="tools-preview">
+                  <span class="tool-count">
+                    <span class="material-symbols-outlined">build</span>
+                    {{ insight.toolsUsed.length }} tools used
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Insight Detail Modal -->
+        <div
+          v-if="showModal && selectedInsight"
+          class="modal-overlay"
+          @click="showModal = false"
+        >
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>Insight Details</h3>
+              <button @click="showModal = false" class="btn-close">&times;</button>
+            </div>
+
+            <div class="modal-body">
+              <div class="detail-section">
+                <h4>Query</h4>
+                <p class="detail-query">{{ selectedInsight.query }}</p>
+              </div>
+
+              <div class="detail-section">
+                <h4>Analysis</h4>
+                <p class="detail-analysis">{{ selectedInsight.analysis }}</p>
+              </div>
+
+              <div v-if="selectedInsight.toolsUsed.length" class="detail-section">
+                <h4>Tools Used</h4>
+                <div class="tools-list">
+                  <span
+                    v-for="tool in selectedInsight.toolsUsed"
+                    :key="tool"
+                    class="tool-tag"
+                  >
+                    {{ tool }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h4>Date</h4>
+                <p>{{ formatDate(selectedInsight.createdAt) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
