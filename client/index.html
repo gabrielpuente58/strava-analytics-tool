@@ -48,15 +48,6 @@
             <h3>Latest Analysis</h3>
           </div>
           <p class="result-text">{{ currentResult.analysis }}</p>
-          <div v-if="currentResult.toolsUsed.length" class="tools-used">
-            <span
-              v-for="tool in currentResult.toolsUsed"
-              :key="tool"
-              class="tool-tag"
-            >
-              {{ tool }}
-            </span>
-          </div>
         </div>
       </section>
 
@@ -88,12 +79,6 @@
           >
             <div class="insight-query-preview">{{ insight.query }}</div>
             <p class="insight-analysis-preview">{{ truncate(insight.analysis, 100) }}</p>
-            <div class="insight-footer">
-              <span class="insight-date">{{ formatDate(insight.createdAt) }}</span>
-              <span v-if="insight.toolsUsed.length" class="tool-count">
-                {{ insight.toolsUsed.length }} tools
-              </span>
-            </div>
           </div>
         </div>
       </section>
@@ -121,23 +106,6 @@
               <p class="detail-analysis">{{ selectedInsight.analysis }}</p>
             </div>
 
-            <div v-if="selectedInsight.toolsUsed.length" class="detail-section">
-              <h4>Tools Used</h4>
-              <div class="tools-list">
-                <span
-                  v-for="tool in selectedInsight.toolsUsed"
-                  :key="tool"
-                  class="tool-tag"
-                >
-                  {{ tool }}
-                </span>
-              </div>
-            </div>
-
-            <div class="detail-section">
-              <h4>Date</h4>
-              <p>{{ formatDate(selectedInsight.createdAt) }}</p>
-            </div>
           </div>
         </div>
       </div>
