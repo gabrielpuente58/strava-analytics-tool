@@ -157,7 +157,7 @@ const tools = [
     function: {
       name: "get_longest_ride",
       description:
-        "Find the longest bike ride by distance. Returns the ride with the greatest distance.",
+        "Find the single longest bike ride by distance. Returns one ride with name, date, distance, speed, and time.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -166,7 +166,25 @@ const tools = [
     function: {
       name: "get_fastest_ride",
       description:
-        "Find the fastest bike ride by average speed. Returns the ride with the highest average speed.",
+        "Find the single fastest bike ride by average speed. Returns one ride with name, date, distance, speed, and time.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_longest_run",
+      description:
+        "Find the single longest run by distance. Returns one run with name, date, distance, and time.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_fastest_run",
+      description:
+        "Find the single fastest run by average speed. Returns one run with name, date, distance, speed, and time.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -175,7 +193,7 @@ const tools = [
     function: {
       name: "get_activity_summary",
       description:
-        "Get an aggregate summary of all activities including total count, breakdown by type, total distance, total time, and date range.",
+        "Get a short summary of all activities: total count, breakdown by type, total distance, total time, and date range.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -183,33 +201,17 @@ const tools = [
     type: "function",
     function: {
       name: "get_recent_activities",
-      description: "Get the N most recent activities.",
+      description: "Get the N most recent activities (default 5, max 10).",
       parameters: {
         type: "object",
         properties: {
           count: {
             type: "number",
-            description: "Number of recent activities to return (default 5)",
+            description: "Number of recent activities to return (default 5, max 10)",
           },
         },
         required: [],
       },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_rides",
-      description: "Get all bike rides with formatted details.",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_all_activities",
-      description: "Get all activities with formatted details.",
-      parameters: { type: "object", properties: {}, required: [] },
     },
   },
 ];
@@ -220,14 +222,35 @@ const toolHandlers = {
     const activities = await getCachedActivities();
     const rides = getRides(activities);
     const longest = getLongestRide(rides);
-    return longest ? formatRide(longest) : { message: "No rides found" };
+    return longest ? formatRide(longest) : { message: "No bike rides found" };
   },
 
   async get_fastest_ride() {
     const activities = await getCachedActivities();
     const rides = getRides(activities);
     const fastest = getFastestRide(rides);
-    return fastest ? formatRide(fastest) : { message: "No rides found" };
+    return fastest ? formatRide(fastest) : { message: "No bike rides found" };
+  },
+
+  async get_longest_run() {
+    const activities = await getCachedActivities();
+    const runs = activities.filter((a) => a.type === "Run");
+    if (runs.length === 0) return { message: "No runs found" };
+    const longest = runs.reduce((max, r) => (r.distance > max.distance ? r : max));
+    return formatActivity(longest);
+  },
+
+  async get_fastest_run() {
+    const activities = await getCachedActivities();
+    const runs = activities.filter((a) => a.type === "Run");
+    if (runs.length === 0) return { message: "No runs found" };
+    const fastest = runs.reduce((max, r) =>
+      r.average_speed > max.average_speed ? r : max,
+    );
+    return {
+      ...formatActivity(fastest),
+      avg_speed_kmh: (fastest.average_speed * 3.6).toFixed(2),
+    };
   },
 
   async get_activity_summary() {
@@ -258,23 +281,12 @@ const toolHandlers = {
   },
 
   async get_recent_activities(args) {
-    const count = args?.count || 5;
+    const count = Math.min(args?.count || 5, 10);
     const activities = await getCachedActivities();
     const sorted = [...activities].sort(
       (a, b) => new Date(b.start_date_local) - new Date(a.start_date_local),
     );
     return sorted.slice(0, count).map(formatActivity);
-  },
-
-  async get_rides() {
-    const activities = await getCachedActivities();
-    const rides = getRides(activities);
-    return rides.map(formatRide);
-  },
-
-  async get_all_activities() {
-    const activities = await getCachedActivities();
-    return activities.map(formatActivity);
   },
 };
 
@@ -283,14 +295,7 @@ async function runAnalysis(query) {
   const messages = [
     {
       role: "system",
-      content: `You are a Strava data assistant. You answer questions about the user's real Strava activities.
-
-RULES:
-- You MUST call a tool to get data before answering. NEVER make up or guess data.
-- Keep answers short and direct. Just answer the question with the real numbers from the tool results.
-- Do NOT write essays, articles, or long analyses. A few sentences is enough.
-- Do NOT write code. Only use the provided tools.
-- If the user asks about a specific activity type (e.g. runs, rides, swims), use the appropriate tool and filter the results.`,
+      content: `You are a Strava data lookup tool. Your ONLY job is to call the right tool, read the result, and report it back in 1-3 sentences. Do NOT make up data. Do NOT write long responses. Do NOT write code. Just call the tool and summarize what it returns.`,
     },
     { role: "user", content: query },
   ];
