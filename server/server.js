@@ -114,15 +114,39 @@ function getFastestRide(rides) {
   );
 }
 
+const KM_TO_MILES = 0.621371;
+const METERS_TO_YARDS = 1.09361;
+
 function formatRide(ride) {
   return {
     name: ride.name,
     date: ride.start_date_local,
-    distance_km: (ride.distance / 1000).toFixed(2),
-    avg_speed_kmh: (ride.average_speed * 3.6).toFixed(2),
-    max_speed_kmh: (ride.max_speed * 3.6).toFixed(2),
+    distance_miles: (ride.distance / 1000 * KM_TO_MILES).toFixed(2),
+    avg_speed_mph: (ride.average_speed * 3.6 * KM_TO_MILES).toFixed(2),
+    max_speed_mph: (ride.max_speed * 3.6 * KM_TO_MILES).toFixed(2),
     moving_time_min: (ride.moving_time / 60).toFixed(1),
-    elevation_gain_m: ride.total_elevation_gain,
+    elevation_gain_ft: (ride.total_elevation_gain * 3.28084).toFixed(0),
+  };
+}
+
+function formatRun(run) {
+  return {
+    name: run.name,
+    type: run.type,
+    date: run.start_date_local,
+    distance_miles: (run.distance / 1000 * KM_TO_MILES).toFixed(2),
+    moving_time_min: (run.moving_time / 60).toFixed(1),
+    elevation_gain_ft: (run.total_elevation_gain * 3.28084).toFixed(0),
+  };
+}
+
+function formatSwim(swim) {
+  return {
+    name: swim.name,
+    type: swim.type,
+    date: swim.start_date_local,
+    distance_yards: (swim.distance * METERS_TO_YARDS).toFixed(0),
+    moving_time_min: (swim.moving_time / 60).toFixed(1),
   };
 }
 
@@ -131,9 +155,9 @@ function formatActivity(activity) {
     name: activity.name,
     type: activity.type,
     date: activity.start_date_local,
-    distance_km: (activity.distance / 1000).toFixed(2),
+    distance_miles: (activity.distance / 1000 * KM_TO_MILES).toFixed(2),
     moving_time_min: (activity.moving_time / 60).toFixed(1),
-    elevation_gain_m: activity.total_elevation_gain,
+    elevation_gain_ft: (activity.total_elevation_gain * 3.28084).toFixed(0),
   };
 }
 
@@ -255,7 +279,7 @@ const toolHandlers = {
     const swims = activities.filter((a) => a.type === "Swim");
     if (swims.length === 0) return { message: "No swims found" };
     const longest = swims.reduce((max, s) => (s.distance > max.distance ? s : max));
-    return formatActivity(longest);
+    return formatSwim(longest);
   },
 
   async get_fastest_swim() {
@@ -266,8 +290,8 @@ const toolHandlers = {
       s.average_speed > max.average_speed ? s : max,
     );
     return {
-      ...formatActivity(fastest),
-      avg_speed_kmh: (fastest.average_speed * 3.6).toFixed(2),
+      ...formatSwim(fastest),
+      avg_speed_yds_per_min: (fastest.average_speed * METERS_TO_YARDS * 60).toFixed(0),
     };
   },
 
@@ -276,7 +300,7 @@ const toolHandlers = {
     const runs = activities.filter((a) => a.type === "Run");
     if (runs.length === 0) return { message: "No runs found" };
     const longest = runs.reduce((max, r) => (r.distance > max.distance ? r : max));
-    return formatActivity(longest);
+    return formatRun(longest);
   },
 
   async get_fastest_run() {
@@ -287,8 +311,8 @@ const toolHandlers = {
       r.average_speed > max.average_speed ? r : max,
     );
     return {
-      ...formatActivity(fastest),
-      avg_speed_kmh: (fastest.average_speed * 3.6).toFixed(2),
+      ...formatRun(fastest),
+      avg_speed_mph: (fastest.average_speed * 3.6 * KM_TO_MILES).toFixed(2),
     };
   },
 
@@ -308,7 +332,7 @@ const toolHandlers = {
     return {
       total_activities: activities.length,
       type_breakdown: typeBreakdown,
-      total_distance_km: (totalDistance / 1000).toFixed(2),
+      total_distance_miles: (totalDistance / 1000 * KM_TO_MILES).toFixed(2),
       total_moving_time_hours: (totalTime / 3600).toFixed(2),
       earliest_activity: dates.length
         ? new Date(Math.min(...dates)).toISOString()
