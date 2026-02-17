@@ -5,27 +5,49 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const { Ollama } = require("ollama");
 
-// --- Config ---
-const ACCESS_TOKEN = process.env.STRAVA_ACCESS_TOKEN;
+const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
+const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
+let accessToken = process.env.STRAVA_ACCESS_TOKEN;
+let refreshToken = process.env.STRAVA_REFRESH_TOKEN;
 const BASE_URL = "https://www.strava.com/api/v3";
+
+async function refreshAccessToken() {
+  console.log("Refreshing Strava access token...");
+  const response = await fetch("https://www.strava.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: STRAVA_CLIENT_ID,
+      client_secret: STRAVA_CLIENT_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Token refresh failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  accessToken = data.access_token;
+  refreshToken = data.refresh_token;
+  console.log("Strava token refreshed successfully");
+}
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "strava_analytics";
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
 const PORT = process.env.PORT || 8080;
 
-// --- Express setup ---
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- MongoDB connection ---
 mongoose
   .connect(`${MONGODB_URI}/${DB_NAME}`)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// --- Mongoose schema & model ---
 const insightSchema = new mongoose.Schema(
   {
     query: String,
@@ -38,20 +60,27 @@ const insightSchema = new mongoose.Schema(
 
 const Insight = mongoose.model("Insight", insightSchema);
 
-// --- Ollama client ---
 const ollama = new Ollama({ host: OLLAMA_HOST });
 
-// --- Strava helper functions ---
+// strava helper functions
 async function getAllActivities() {
   const activities = [];
   let page = 1;
   const perPage = 200;
 
   while (true) {
-    const response = await fetch(
+    let response = await fetch(
       `${BASE_URL}/athlete/activities?per_page=${perPage}&page=${page}`,
-      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } },
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     );
+
+    if (response.status === 401) {
+      await refreshAccessToken();
+      response = await fetch(
+        `${BASE_URL}/athlete/activities?per_page=${perPage}&page=${page}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`Strava API error: ${response.status}`);
@@ -108,7 +137,6 @@ function formatActivity(activity) {
   };
 }
 
-// --- Activity cache (5-min TTL) ---
 let activityCache = { data: null, timestamp: 0 };
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -122,7 +150,7 @@ async function getCachedActivities() {
   return activities;
 }
 
-// --- Tool schemas for Ollama ---
+// tool schemas
 const tools = [
   {
     type: "function",
@@ -186,7 +214,7 @@ const tools = [
   },
 ];
 
-// --- Tool handlers ---
+// TOOLS
 const toolHandlers = {
   async get_longest_ride() {
     const activities = await getCachedActivities();
@@ -250,7 +278,7 @@ const toolHandlers = {
   },
 };
 
-// --- Tool-calling loop ---
+// TOOL CALLLING LOOP
 async function runAnalysis(query) {
   const messages = [
     {
@@ -299,7 +327,7 @@ async function runAnalysis(query) {
   }
 }
 
-// --- Routes ---
+// ROUTES
 app.post("/analyze", async (req, res) => {
   const { query } = req.body;
   if (!query) {
@@ -316,8 +344,8 @@ app.post("/analyze", async (req, res) => {
     });
     res.json(insight);
   } catch (err) {
-    console.error("Analysis error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Analysis error:", err.cause || err);
+    res.status(500).json({ error: err.message, details: err.cause?.message });
   }
 });
 
@@ -342,7 +370,6 @@ app.get("/insights/:id", async (req, res) => {
   }
 });
 
-// --- Start server ---
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
