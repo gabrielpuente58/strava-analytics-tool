@@ -358,7 +358,7 @@ async function runAnalysis(query) {
   const messages = [
     {
       role: "system",
-      content: `You are a Strava data lookup tool. Your ONLY job is to call the right tool, read the result, and report it back in 1-3 sentences. Do NOT make up data. Do NOT write long responses. Do NOT write code. Just call the tool and summarize what it returns.`,
+      content: `You are a Strava data lookup tool. Your ONLY job is to call the right tool, read the result, and report it back in 1-3 sentences. Do NOT make up data. Do NOT write long responses. Do NOT write code. Just call the tool and summarize what it returns. All distances are in miles (rides/runs) or yards (swims). Always use these units in your response — never use kilometers.`,
     },
     { role: "user", content: query },
   ];
