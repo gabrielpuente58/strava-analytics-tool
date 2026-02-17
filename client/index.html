@@ -17,6 +17,7 @@
           <span class="material-symbols-outlined">directions_bike</span>
           Strava Analytics
         </h1>
+        <p class="subtitle">AI-powered insights from your activity data</p>
       </header>
 
       <main>
@@ -28,9 +29,7 @@
           </h2>
           <form @submit.prevent="analyze">
             <div class="form-group">
-              <label for="query">What do you want to know about your activities?</label>
               <textarea
-                id="query"
                 v-model="query"
                 required
                 placeholder="e.g. What was my longest ride? Give me a summary of all my activities..."
@@ -49,23 +48,24 @@
             {{ message }}
           </div>
 
-          <!-- Current Analysis Result -->
+          <!-- Current Result -->
           <div v-if="currentResult" class="result-card">
-            <h3>Analysis</h3>
+            <h3>
+              <span class="material-symbols-outlined">lightbulb</span>
+              Result
+            </h3>
             <div class="analysis-content">
               <p>{{ currentResult.analysis }}</p>
             </div>
             <div v-if="currentResult.toolsUsed.length" class="tools-used">
-              <h4>Tools Used</h4>
-              <div class="tools-list">
-                <span
-                  v-for="tool in currentResult.toolsUsed"
-                  :key="tool"
-                  class="tool-tag"
-                >
-                  {{ tool }}
-                </span>
-              </div>
+              <span
+                v-for="tool in currentResult.toolsUsed"
+                :key="tool"
+                class="tool-tag"
+              >
+                <span class="material-symbols-outlined">build</span>
+                {{ tool }}
+              </span>
             </div>
           </div>
         </section>
@@ -77,12 +77,16 @@
             Past Insights
           </h2>
 
-          <div v-if="insightsLoading" class="loading">Loading insights...</div>
+          <div v-if="insightsLoading" class="loading">
+            <span class="material-symbols-outlined spin">progress_activity</span>
+            Loading...
+          </div>
 
           <div v-else-if="error" class="error">{{ error }}</div>
 
           <div v-else-if="insights.length === 0" class="empty-state">
-            No insights yet. Ask a question to get started!
+            <span class="material-symbols-outlined">inbox</span>
+            <p>No insights yet. Ask a question to get started!</p>
           </div>
 
           <div v-else class="insights-list">
@@ -92,24 +96,19 @@
               class="insight-card"
               @click="viewInsight(insight._id)"
             >
-              <div class="insight-header">
-                <div class="insight-query-preview">{{ insight.query }}</div>
-                <div class="insight-date">{{ formatDate(insight.createdAt) }}</div>
-              </div>
-              <div class="insight-preview">
-                <p>{{ truncate(insight.analysis, 120) }}</p>
-                <div v-if="insight.toolsUsed.length" class="tools-preview">
-                  <span class="tool-count">
-                    <span class="material-symbols-outlined">build</span>
-                    {{ insight.toolsUsed.length }} tools used
-                  </span>
-                </div>
+              <div class="insight-query-preview">{{ insight.query }}</div>
+              <p class="insight-analysis-preview">{{ truncate(insight.analysis, 100) }}</p>
+              <div class="insight-footer">
+                <span class="insight-date">{{ formatDate(insight.createdAt) }}</span>
+                <span v-if="insight.toolsUsed.length" class="tool-count">
+                  {{ insight.toolsUsed.length }} tools
+                </span>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Insight Detail Modal -->
+        <!-- Modal -->
         <div
           v-if="showModal && selectedInsight"
           class="modal-overlay"
@@ -140,6 +139,7 @@
                     :key="tool"
                     class="tool-tag"
                   >
+                    <span class="material-symbols-outlined">build</span>
                     {{ tool }}
                   </span>
                 </div>
