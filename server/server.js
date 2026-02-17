@@ -283,8 +283,14 @@ async function runAnalysis(query) {
   const messages = [
     {
       role: "system",
-      content:
-        "You are a sports analytics assistant. You have access to tools that fetch real Strava activity data. ONLY use the provided tools to get data — do NOT write code. Call the appropriate tool, wait for the result, then provide a helpful analysis based on the data. Be specific and reference actual numbers.",
+      content: `You are a Strava data assistant. You answer questions about the user's real Strava activities.
+
+RULES:
+- You MUST call a tool to get data before answering. NEVER make up or guess data.
+- Keep answers short and direct. Just answer the question with the real numbers from the tool results.
+- Do NOT write essays, articles, or long analyses. A few sentences is enough.
+- Do NOT write code. Only use the provided tools.
+- If the user asks about a specific activity type (e.g. runs, rides, swims), use the appropriate tool and filter the results.`,
     },
     { role: "user", content: query },
   ];
