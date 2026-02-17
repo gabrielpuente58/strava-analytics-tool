@@ -20,139 +20,127 @@
         <p class="subtitle">AI-powered insights from your activity data</p>
       </header>
 
-      <main>
-        <!-- Query Form -->
-        <section class="form-section">
-          <h2>
-            <span class="material-symbols-outlined">search</span>
-            Ask a Question
-          </h2>
-          <form @submit.prevent="analyze">
-            <div class="form-group">
-              <textarea
-                v-model="query"
-                required
-                placeholder="e.g. What was my longest ride? Give me a summary of all my activities..."
-                rows="3"
-                :disabled="loading"
-              ></textarea>
-            </div>
+      <!-- Query Section -->
+      <section class="query-section">
+        <form @submit.prevent="analyze" class="query-form">
+          <input
+            type="text"
+            v-model="query"
+            required
+            placeholder="Ask about your Strava activities..."
+            :disabled="loading"
+          />
+          <button type="submit" :disabled="loading || !query.trim()">
+            <span class="material-symbols-outlined">{{ loading ? 'progress_activity' : 'send' }}</span>
+          </button>
+        </form>
 
-            <button type="submit" class="btn-primary" :disabled="loading || !query.trim()">
-              <span class="material-symbols-outlined">analytics</span>
-              {{ loading ? 'Analyzing...' : 'Analyze' }}
-            </button>
-          </form>
+        <div v-if="message" :class="['message', messageType]">
+          {{ message }}
+        </div>
+      </section>
 
-          <div v-if="message" :class="['message', messageType]">
-            {{ message }}
+      <!-- Current Result -->
+      <section v-if="currentResult" class="result-section">
+        <div class="result-card">
+          <div class="result-header">
+            <span class="material-symbols-outlined">lightbulb</span>
+            <h3>Latest Analysis</h3>
           </div>
+          <p class="result-text">{{ currentResult.analysis }}</p>
+          <div v-if="currentResult.toolsUsed.length" class="tools-used">
+            <span
+              v-for="tool in currentResult.toolsUsed"
+              :key="tool"
+              class="tool-tag"
+            >
+              {{ tool }}
+            </span>
+          </div>
+        </div>
+      </section>
 
-          <!-- Current Result -->
-          <div v-if="currentResult" class="result-card">
-            <h3>
-              <span class="material-symbols-outlined">lightbulb</span>
-              Result
-            </h3>
-            <div class="analysis-content">
-              <p>{{ currentResult.analysis }}</p>
-            </div>
-            <div v-if="currentResult.toolsUsed.length" class="tools-used">
-              <span
-                v-for="tool in currentResult.toolsUsed"
-                :key="tool"
-                class="tool-tag"
-              >
-                <span class="material-symbols-outlined">build</span>
-                {{ tool }}
+      <!-- Past Insights Grid -->
+      <section class="insights-section">
+        <h2>
+          <span class="material-symbols-outlined">history</span>
+          Past Insights
+        </h2>
+
+        <div v-if="insightsLoading" class="loading">
+          <span class="material-symbols-outlined spin">progress_activity</span>
+          Loading...
+        </div>
+
+        <div v-else-if="error" class="error">{{ error }}</div>
+
+        <div v-else-if="insights.length === 0" class="empty-state">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>No insights yet. Ask a question to get started!</p>
+        </div>
+
+        <div v-else class="insights-grid">
+          <div
+            v-for="insight in insights"
+            :key="insight._id"
+            class="insight-card"
+            @click="viewInsight(insight._id)"
+          >
+            <div class="insight-query-preview">{{ insight.query }}</div>
+            <p class="insight-analysis-preview">{{ truncate(insight.analysis, 100) }}</p>
+            <div class="insight-footer">
+              <span class="insight-date">{{ formatDate(insight.createdAt) }}</span>
+              <span v-if="insight.toolsUsed.length" class="tool-count">
+                {{ insight.toolsUsed.length }} tools
               </span>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <!-- Past Insights -->
-        <section class="insights-section">
-          <h2>
-            <span class="material-symbols-outlined">history</span>
-            Past Insights
-          </h2>
-
-          <div v-if="insightsLoading" class="loading">
-            <span class="material-symbols-outlined spin">progress_activity</span>
-            Loading...
+      <!-- Modal -->
+      <div
+        v-if="showModal && selectedInsight"
+        class="modal-overlay"
+        @click="showModal = false"
+      >
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Insight Details</h3>
+            <button @click="showModal = false" class="btn-close">&times;</button>
           </div>
 
-          <div v-else-if="error" class="error">{{ error }}</div>
+          <div class="modal-body">
+            <div class="detail-section">
+              <h4>Query</h4>
+              <p class="detail-query">{{ selectedInsight.query }}</p>
+            </div>
 
-          <div v-else-if="insights.length === 0" class="empty-state">
-            <span class="material-symbols-outlined">inbox</span>
-            <p>No insights yet. Ask a question to get started!</p>
-          </div>
+            <div class="detail-section">
+              <h4>Analysis</h4>
+              <p class="detail-analysis">{{ selectedInsight.analysis }}</p>
+            </div>
 
-          <div v-else class="insights-list">
-            <div
-              v-for="insight in insights"
-              :key="insight._id"
-              class="insight-card"
-              @click="viewInsight(insight._id)"
-            >
-              <div class="insight-query-preview">{{ insight.query }}</div>
-              <p class="insight-analysis-preview">{{ truncate(insight.analysis, 100) }}</p>
-              <div class="insight-footer">
-                <span class="insight-date">{{ formatDate(insight.createdAt) }}</span>
-                <span v-if="insight.toolsUsed.length" class="tool-count">
-                  {{ insight.toolsUsed.length }} tools
+            <div v-if="selectedInsight.toolsUsed.length" class="detail-section">
+              <h4>Tools Used</h4>
+              <div class="tools-list">
+                <span
+                  v-for="tool in selectedInsight.toolsUsed"
+                  :key="tool"
+                  class="tool-tag"
+                >
+                  {{ tool }}
                 </span>
               </div>
             </div>
-          </div>
-        </section>
 
-        <!-- Modal -->
-        <div
-          v-if="showModal && selectedInsight"
-          class="modal-overlay"
-          @click="showModal = false"
-        >
-          <div class="modal-content" @click.stop>
-            <div class="modal-header">
-              <h3>Insight Details</h3>
-              <button @click="showModal = false" class="btn-close">&times;</button>
-            </div>
-
-            <div class="modal-body">
-              <div class="detail-section">
-                <h4>Query</h4>
-                <p class="detail-query">{{ selectedInsight.query }}</p>
-              </div>
-
-              <div class="detail-section">
-                <h4>Analysis</h4>
-                <p class="detail-analysis">{{ selectedInsight.analysis }}</p>
-              </div>
-
-              <div v-if="selectedInsight.toolsUsed.length" class="detail-section">
-                <h4>Tools Used</h4>
-                <div class="tools-list">
-                  <span
-                    v-for="tool in selectedInsight.toolsUsed"
-                    :key="tool"
-                    class="tool-tag"
-                  >
-                    <span class="material-symbols-outlined">build</span>
-                    {{ tool }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="detail-section">
-                <h4>Date</h4>
-                <p>{{ formatDate(selectedInsight.createdAt) }}</p>
-              </div>
+            <div class="detail-section">
+              <h4>Date</h4>
+              <p>{{ formatDate(selectedInsight.createdAt) }}</p>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>

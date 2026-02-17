@@ -10,12 +10,9 @@ body {
     Cantarell, sans-serif;
   background: #0d1117;
   min-height: 100vh;
-  padding: 15px;
   color: #c9d1d9;
-  overflow: hidden;
 }
 
-/* Icons */
 .material-symbols-outlined {
   vertical-align: middle;
   display: inline-flex;
@@ -27,11 +24,11 @@ body {
 /* Header */
 header {
   text-align: center;
-  margin-bottom: 20px;
+  padding: 40px 20px 20px;
 }
 
 header h1 {
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: #e6edf3;
   display: flex;
   align-items: center;
@@ -40,134 +37,85 @@ header h1 {
 }
 
 header h1 .material-symbols-outlined {
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: #fc4c02;
 }
 
 .subtitle {
-  margin-top: 6px;
-  font-size: 0.9rem;
+  margin-top: 8px;
+  font-size: 0.95rem;
   color: #8b949e;
 }
 
-/* Layout */
-main {
-  max-width: 1400px;
+/* Query Section */
+.query-section {
+  max-width: 700px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  height: calc(100vh - 130px);
+  padding: 10px 20px 20px;
 }
 
-@media (max-width: 968px) {
-  main {
-    grid-template-columns: 1fr;
-    height: auto;
-    overflow: visible;
-  }
-
-  body {
-    overflow: auto;
-  }
-}
-
-/* Sections */
-.form-section,
-.insights-section {
-  background: #161b22;
-  padding: 24px;
-  border-radius: 12px;
-  border: 1px solid #30363d;
-  height: 100%;
-  overflow-y: auto;
+.query-form {
   display: flex;
-  flex-direction: column;
+  gap: 10px;
 }
 
-.form-section h2,
-.insights-section h2 {
-  margin-bottom: 16px;
-  font-size: 1.2rem;
-  color: #e6edf3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-h2 .material-symbols-outlined {
-  color: #fc4c02;
-  font-size: 1.3rem;
-}
-
-/* Form */
-.form-group {
-  margin-bottom: 14px;
-}
-
-.form-group textarea {
-  width: 100%;
-  padding: 12px;
+.query-form input {
+  flex: 1;
+  padding: 14px 18px;
   border: 1px solid #30363d;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border-radius: 10px;
+  font-size: 1rem;
   font-family: inherit;
-  resize: vertical;
-  transition: border-color 0.2s;
-  min-height: 80px;
-  max-height: 150px;
-  background: #0d1117;
+  background: #161b22;
   color: #c9d1d9;
+  transition: border-color 0.2s;
 }
 
-.form-group textarea::placeholder {
+.query-form input::placeholder {
   color: #484f58;
 }
 
-.form-group textarea:focus {
+.query-form input:focus {
   outline: none;
   border-color: #fc4c02;
 }
 
-.form-group textarea:disabled {
+.query-form input:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
-/* Button */
-.btn-primary {
-  width: 100%;
-  padding: 12px;
+.query-form button {
+  padding: 14px 18px;
   background: #fc4c02;
   color: #fff;
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 10px;
   cursor: pointer;
   transition: opacity 0.2s;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
-.btn-primary:hover:not(:disabled) {
+.query-form button:hover:not(:disabled) {
   opacity: 0.85;
 }
 
-.btn-primary:disabled {
+.query-form button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+.query-form button .spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Messages */
 .message {
-  margin-top: 12px;
+  margin-top: 10px;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 0.9rem;
+  text-align: center;
 }
 
 .message.success {
@@ -182,29 +130,37 @@ h2 .material-symbols-outlined {
   border: 1px solid #da3633;
 }
 
-/* Result Card */
+/* Result Section */
+.result-section {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 20px 20px;
+}
+
 .result-card {
-  margin-top: 20px;
-  padding: 18px;
-  background: #0d1117;
-  border-radius: 10px;
+  padding: 20px;
+  background: #161b22;
+  border-radius: 12px;
   border: 1px solid #fc4c02;
 }
 
-.result-card h3 {
-  margin-bottom: 12px;
-  font-size: 1.1rem;
-  color: #e6edf3;
+.result-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 14px;
 }
 
-.result-card h3 .material-symbols-outlined {
+.result-header .material-symbols-outlined {
   color: #fc4c02;
 }
 
-.analysis-content p {
+.result-header h3 {
+  font-size: 1.1rem;
+  color: #e6edf3;
+}
+
+.result-text {
   line-height: 1.7;
   color: #c9d1d9;
   white-space: pre-wrap;
@@ -238,16 +194,32 @@ h2 .material-symbols-outlined {
   border: 1px solid #4a2a08;
 }
 
-.tool-tag .material-symbols-outlined {
-  font-size: 0.85rem;
+/* Insights Section */
+.insights-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 20px 40px;
 }
 
-/* Insights List */
+.insights-section h2 {
+  font-size: 1.2rem;
+  color: #e6edf3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.insights-section h2 .material-symbols-outlined {
+  color: #fc4c02;
+  font-size: 1.3rem;
+}
+
 .loading,
 .error,
 .empty-state {
   text-align: center;
-  padding: 40px 15px;
+  padding: 50px 15px;
   color: #484f58;
   font-size: 0.95rem;
 }
@@ -278,46 +250,50 @@ h2 .material-symbols-outlined {
   color: #f85149;
 }
 
-.insights-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
+/* Insights Grid */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
 }
 
 .insight-card {
-  padding: 16px;
-  background: #0d1117;
-  border-radius: 8px;
+  padding: 18px;
+  background: #161b22;
+  border-radius: 10px;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.2s;
   border: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
 }
 
 .insight-card:hover {
   border-color: #fc4c02;
+  transform: translateY(-2px);
 }
 
 .insight-query-preview {
   font-weight: 600;
   color: #e6edf3;
   font-size: 0.95rem;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .insight-analysis-preview {
   color: #8b949e;
-  line-height: 1.4;
+  line-height: 1.5;
   font-size: 0.85rem;
-  margin-bottom: 8px;
+  flex: 1;
 }
 
 .insight-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #21262d;
 }
 
 .insight-date {
