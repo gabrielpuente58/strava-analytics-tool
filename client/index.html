@@ -40,8 +40,16 @@
         </div>
       </section>
 
+      <!-- Loading -->
+      <section v-if="loading" class="result-section">
+        <div class="loading-card">
+          <span class="material-symbols-outlined spin">progress_activity</span>
+          <p>Analyzing your Strava data...</p>
+        </div>
+      </section>
+
       <!-- Current Result -->
-      <section v-if="currentResult" class="result-section">
+      <section v-if="currentResult && !loading" class="result-section">
         <div class="result-card">
           <div class="result-header">
             <span class="material-symbols-outlined">lightbulb</span>

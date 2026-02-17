@@ -130,6 +130,27 @@ header h1 .material-symbols-outlined {
   border: 1px solid #da3633;
 }
 
+/* Loading Card */
+.loading-card {
+  text-align: center;
+  padding: 30px;
+  background: #161b22;
+  border-radius: 12px;
+  border: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.loading-card .material-symbols-outlined {
+  font-size: 2rem;
+  color: #fc4c02;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.loading-card p {
+  font-size: 0.95rem;
+}
+
 /* Result Section */
 .result-section {
   max-width: 700px;
