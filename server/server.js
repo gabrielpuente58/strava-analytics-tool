@@ -191,6 +191,24 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "get_longest_swim",
+      description:
+        "Find the single longest swim by distance. Returns one swim with name, date, distance, and time.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_fastest_swim",
+      description:
+        "Find the single fastest swim by average speed. Returns one swim with name, date, distance, speed, and time.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_activity_summary",
       description:
         "Get a short summary of all activities: total count, breakdown by type, total distance, total time, and date range.",
@@ -230,6 +248,27 @@ const toolHandlers = {
     const rides = getRides(activities);
     const fastest = getFastestRide(rides);
     return fastest ? formatRide(fastest) : { message: "No bike rides found" };
+  },
+
+  async get_longest_swim() {
+    const activities = await getCachedActivities();
+    const swims = activities.filter((a) => a.type === "Swim");
+    if (swims.length === 0) return { message: "No swims found" };
+    const longest = swims.reduce((max, s) => (s.distance > max.distance ? s : max));
+    return formatActivity(longest);
+  },
+
+  async get_fastest_swim() {
+    const activities = await getCachedActivities();
+    const swims = activities.filter((a) => a.type === "Swim");
+    if (swims.length === 0) return { message: "No swims found" };
+    const fastest = swims.reduce((max, s) =>
+      s.average_speed > max.average_speed ? s : max,
+    );
+    return {
+      ...formatActivity(fastest),
+      avg_speed_kmh: (fastest.average_speed * 3.6).toFixed(2),
+    };
   },
 
   async get_longest_run() {
