@@ -284,7 +284,7 @@ async function runAnalysis(query) {
     {
       role: "system",
       content:
-        "You are a sports analytics assistant. Use the available tools to fetch real Strava activity data, then provide a helpful analysis based on the results. Be specific and reference actual numbers from the data.",
+        "You are a sports analytics assistant. You have access to tools that fetch real Strava activity data. ONLY use the provided tools to get data — do NOT write code. Call the appropriate tool, wait for the result, then provide a helpful analysis based on the data. Be specific and reference actual numbers.",
     },
     { role: "user", content: query },
   ];
@@ -292,12 +292,27 @@ async function runAnalysis(query) {
   const toolsUsed = [];
   const stravaData = {};
 
-  while (true) {
-    const response = await ollama.chat({
-      model: OLLAMA_MODEL,
-      messages,
-      tools,
-    });
+  const MAX_ITERATIONS = 10;
+  let iterations = 0;
+
+  while (iterations++ < MAX_ITERATIONS) {
+    let response;
+    try {
+      response = await ollama.chat({
+        model: OLLAMA_MODEL,
+        messages,
+        tools,
+      });
+    } catch (err) {
+      // Model produced invalid tool call (e.g. wrote code instead of JSON)
+      // Retry without tools so it gives a plain text answer
+      console.error("Tool call parse error, retrying without tools:", err.message);
+      const fallback = await ollama.chat({
+        model: OLLAMA_MODEL,
+        messages,
+      });
+      return { analysis: fallback.message.content, toolsUsed, stravaData };
+    }
 
     const msg = response.message;
     messages.push(msg);
@@ -325,6 +340,8 @@ async function runAnalysis(query) {
       messages.push({ role: "tool", content: JSON.stringify(result) });
     }
   }
+
+  return { analysis: "Analysis could not be completed.", toolsUsed, stravaData };
 }
 
 // ROUTES
