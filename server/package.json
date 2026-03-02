@@ -12,10 +12,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@langchain/core": "^1.1.29",
+    "@langchain/langgraph": "^1.2.0",
+    "@langchain/ollama": "^1.2.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "mongoose": "^9.2.1",
-    "ollama": "^0.6.3"
+    "ollama": "^0.6.3",
+    "zod": "^4.3.6"
   }
 }
